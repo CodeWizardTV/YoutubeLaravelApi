@@ -151,7 +151,7 @@ class ChannelService extends AuthService {
 			$params = array('channelId' => $channelId, 'maxResults' => $maxResultsPerPage);
 			$nextPageToken = 1;
 			$subscriptions = [];
-			while ($nextPageToken and $i < $maxPages) {
+			while ($nextPageToken && $i < $maxPages) {
 				if($i == $maxPages-1){
 					$params['maxResults'] = $totalResults % $maxResultsPerPage + 2;
 				}
@@ -281,6 +281,7 @@ class ChannelService extends AuthService {
 			$totalResults = 0;
 		}
 		$maxPages = ($totalResults - ($totalResults % $maxResultsPerPage)) / $maxResultsPerPage + 1;
+
 		$i = 0;
 		try {
 			$service = new \Google_Service_YouTube($this->client);
@@ -295,7 +296,7 @@ class ChannelService extends AuthService {
 			$nextPageToken = 1;
 			$subscribers = [];
 
-			while ($nextPageToken and $i < $maxPages) {
+			while ($nextPageToken && $i < $maxPages) {
 				if ($i == $maxPages - 1) {
 					$params['maxResults'] = $totalResults % $maxResultsPerPage + 2;
 				}
@@ -304,6 +305,11 @@ class ChannelService extends AuthService {
 				$response = json_decode(json_encode($response), true);
 
 				foreach ($response['items'] as $item) {
+					$subscriber_channelid = null;
+					if (isset($item['subscriberSnippet']) && isset($item['subscriberSnippet']['channelId'])) {
+						$subscriber_channelid = $item['subscriberSnippet']['channelId'];
+					}
+
 					$subscriber_name = null;
 					if (isset($item['subscriberSnippet']) && isset($item['subscriberSnippet']['title'])) {
 						$subscriber_name = $item['subscriberSnippet']['title'];
@@ -314,7 +320,9 @@ class ChannelService extends AuthService {
 						$subscribed_at = $item['snippet']['publishedAt'];
 					}
 
-					$subscribers[] = ['name' => $subscriber_name, 'subscribed_at' => $subscribed_at];
+					if ($subscriber_channelid != null) {
+						$subscribers[] = ['channelid' => $subscriber_channelid, 'name' => $subscriber_name, 'subscribed_at' => $subscribed_at];
+					}
 				}
 
 				$nextPageToken = isset($response['nextPageToken']) ? $response['nextPageToken'] : false;
