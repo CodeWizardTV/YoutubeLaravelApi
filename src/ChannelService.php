@@ -119,7 +119,7 @@ class ChannelService extends AuthService {
 
 			$params = array_filter($params);
 
-			$service = new \Google_Service_YouTube($this->client);
+			// $service = new \Google_Service_YouTube($this->client);
 			return $this->parseSubscriptions($params);
 
 		} catch (\Google_Service_Exception $e) {
@@ -244,4 +244,92 @@ class ChannelService extends AuthService {
 
 	}
 
+
+
+
+
+
+	/**
+	 * [parseSubscriptions working]
+	 * @param  [type] $part
+	 * @return [type] $params
+	 */
+	public function getSubscribers($params)
+	{
+		try {
+			$params = array_filter($params);
+			return $this->parseSubscribers($params);
+		} catch (\Google_Service_Exception $e) {
+			throw new Exception($e->getMessage(), 1);
+		} catch (\Google_Exception $e) {
+			throw new Exception($e->getMessage(), 1);
+		} catch (Exception $e) {
+			throw new Exception($e->getMessage(), 1);
+		}
+	}
+
+	/**
+	 * [parseSubscriptions working]
+	 * @param  [type] $channelId [description]
+	 * @return [type]            [description]
+	 */
+	public function parseSubscribers($params)
+	{
+		$totalResults = $params['totalResults'];
+		$maxResultsPerPage = 50;
+		if ($totalResults < 1) {
+			$totalResults = 0;
+		}
+		$maxPages = ($totalResults - ($totalResults % $maxResultsPerPage)) / $maxResultsPerPage + 1;
+		$i = 0;
+		try {
+			$service = new \Google_Service_YouTube($this->client);
+			$part = 'snippet,subscriberSnippet';
+
+			if (isset($params['myRecentSubscribers']) && $params['myRecentSubscribers'] == true) {
+				$params = array('maxResults' => $maxResultsPerPage, 'myRecentSubscribers' => true);
+			} else {
+				$params = array('maxResults' => $maxResultsPerPage, 'mySubscribers' => true);
+			}
+
+			$nextPageToken = 1;
+			$subscribers = [];
+
+			while ($nextPageToken and $i < $maxPages) {
+				if ($i == $maxPages - 1) {
+					$params['maxResults'] = $totalResults % $maxResultsPerPage + 2;
+				}
+
+				$response = $service->subscriptions->listSubscriptions($part, $params);
+				$response = json_decode(json_encode($response), true);
+
+				foreach ($response['items'] as $item) {
+					$subscriber_name = null;
+					if (isset($item['subscriberSnippet']) && isset($item['subscriberSnippet']['title'])) {
+						$subscriber_name = $item['subscriberSnippet']['title'];
+					}
+
+					$subscribed_at = null;
+					if (isset($item['snippet']) && isset($item['snippet']['publishedAt'])) {
+						$subscribed_at = $item['snippet']['publishedAt'];
+					}
+
+					$subscribers[] = ['name' => $subscriber_name, 'subscribed_at' => $subscribed_at];
+				}
+
+				$nextPageToken = isset($response['nextPageToken']) ? $response['nextPageToken'] : false;
+
+				$params['pageToken'] = $nextPageToken;
+				$i++;
+			}
+
+			return $subscribers;
+		} catch (\Google_Service_Exception $e) {
+			throw new Exception($e->getMessage(), 1);
+		} catch (\Google_Exception $e) {
+			throw new Exception($e->getMessage(), 1);
+		} catch (Exception $e) {
+			throw new Exception($e->getMessage(), 1);
+		}
+	}
 }
